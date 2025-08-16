@@ -12,10 +12,11 @@ import java.util.Date;
 @Data
 @AllArgsConstructor
 @NoArgsConstructor
-public class ShortUrl {
+public class ShortCode {
     @Id
     private String code;
     private String longUrl;
+    private String password;
     private Date creationTime;
     private Date expirationTime;
 }

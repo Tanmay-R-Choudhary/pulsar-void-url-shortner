@@ -5,6 +5,7 @@ import lombok.Data;
 
 @Data
 @AllArgsConstructor
-public class CreateForm {
+public class SendCodeDataDto {
+    private String code;
     private String longUrl;
 }
