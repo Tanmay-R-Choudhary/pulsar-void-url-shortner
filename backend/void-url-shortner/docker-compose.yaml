@@ -1,0 +1,26 @@
+services:
+  mongodb:
+    image: mongo:latest
+    container_name: mongodb
+    restart: always
+    ports:
+      - "27017:27017"
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: root
+      MONGO_INITDB_ROOT_PASSWORD: examplepassword
+    volumes:
+      - mongo-data:/data/db
+
+  springboot-app:
+    build: .
+    container_name: springboot-app
+    restart: on-failure
+    ports:
+      - "8080:8080"
+    environment:
+      - MONGO_URI=mongodb://root:examplepassword@mongodb:27017/shorturls?authSource=admin
+    depends_on:
+      - mongodb
+
+volumes:
+  mongo-data:
