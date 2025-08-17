@@ -72,9 +72,9 @@ class HomePage extends StatelessWidget {
                             );
                           },
                         ),
-                        SizedBox(height: isDesktop ? 60 : 40),
-                        _buildFooter(context),
-                        const SizedBox(height: 40),
+                        // SizedBox(height: isDesktop ? 60 : 40),
+                        // _buildFooter(context),
+                        // const SizedBox(height: 40),
                       ],
                     );
                   },
@@ -194,33 +194,33 @@ class HomePage extends StatelessWidget {
     );
   }
 
-  Widget _buildFooter(BuildContext context) {
-    return Column(
-      children: [
-        Text(
-          'Part of the pulsar project',
-          style: GoogleFonts.questrial(
-            color: AppTheme.dimStar.withValues(alpha: 0.6),
-            fontSize: 12,
-            fontWeight: FontWeight.w300,
-            letterSpacing: 1,
-          ),
-        ),
-        const SizedBox(height: 8),
-        Container(
-          width: 60,
-          height: 2,
-          decoration: BoxDecoration(
-            gradient: LinearGradient(
-              colors: [
-                AppTheme.magneticField.withValues(alpha: 0.0),
-                AppTheme.magneticField,
-                AppTheme.magneticField.withValues(alpha: 0.0),
-              ],
-            ),
-          ),
-        ),
-      ],
-    );
-  }
+  // Widget _buildFooter(BuildContext context) {
+  //   return Column(
+  //     children: [
+  //       Text(
+  //         'Part of the pulsar project',
+  //         style: GoogleFonts.questrial(
+  //           color: AppTheme.dimStar.withValues(alpha: 0.6),
+  //           fontSize: 12,
+  //           fontWeight: FontWeight.w300,
+  //           letterSpacing: 1,
+  //         ),
+  //       ),
+  //       const SizedBox(height: 8),
+  //       Container(
+  //         width: 60,
+  //         height: 2,
+  //         decoration: BoxDecoration(
+  //           gradient: LinearGradient(
+  //             colors: [
+  //               AppTheme.magneticField.withValues(alpha: 0.0),
+  //               AppTheme.magneticField,
+  //               AppTheme.magneticField.withValues(alpha: 0.0),
+  //             ],
+  //           ),
+  //         ),
+  //       ),
+  //     ],
+  //   );
+  // }
 }
