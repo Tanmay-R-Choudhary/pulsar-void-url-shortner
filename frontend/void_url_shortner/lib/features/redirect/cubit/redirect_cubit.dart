@@ -18,7 +18,16 @@ class RedirectCubit extends Cubit<RedirectState> {
       if (redirectModel.isPasswordProtected) {
         emit(RedirectPasswordRequired(shortCode: shortCode));
       } else {
-        emit(RedirectSuccess(originalUrl: redirectModel.originalUrl));
+        if (redirectModel.originalUrl != null &&
+            redirectModel.originalUrl!.isNotEmpty) {
+          emit(RedirectSuccess(originalUrl: redirectModel.originalUrl!));
+        } else {
+          emit(
+            const RedirectError(
+              message: 'Could not retrieve the original URL.',
+            ),
+          );
+        }
       }
     } catch (e) {
       emit(

@@ -45,17 +45,14 @@ class UrlModel extends Equatable {
 }
 
 class RedirectModel extends Equatable {
-  final String originalUrl;
+  final String? originalUrl;
   final bool isPasswordProtected;
 
-  const RedirectModel({
-    required this.originalUrl,
-    required this.isPasswordProtected,
-  });
+  const RedirectModel({this.originalUrl, required this.isPasswordProtected});
 
   factory RedirectModel.fromJson(Map<String, dynamic> json) {
     return RedirectModel(
-      originalUrl: json['original_url'] ?? '',
+      originalUrl: json['original_url'],
       isPasswordProtected: json['is_password_protected'] ?? false,
     );
   }
