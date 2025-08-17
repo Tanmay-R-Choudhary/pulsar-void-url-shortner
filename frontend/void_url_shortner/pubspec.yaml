@@ -41,6 +41,7 @@ dependencies:
   url_launcher: ^6.3.2
   google_fonts: ^6.3.0
   toastification: ^3.0.3
+  url_strategy: ^0.3.0
 
 dev_dependencies:
   flutter_test:
