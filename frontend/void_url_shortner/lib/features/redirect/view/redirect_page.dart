@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:go_router/go_router.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import '../cubit/redirect_cubit.dart';
 import '../cubit/redirect_state.dart';
 import '../../../shared/theme/app_theme.dart';
@@ -23,14 +24,16 @@ class RedirectPage extends StatelessWidget {
             child: BlocListener<RedirectCubit, RedirectState>(
               listener: (context, state) {
                 if (state is RedirectSuccess) {
-                  _launchUrl(state.originalUrl);
+                  _launchUrl(context, state.originalUrl);
                 } else if (state is RedirectError) {
                   ErrorDialog.show(
                     context,
-                    title: 'Link Not Found',
+                    title: 'Link Unavailable',
                     message: state.message,
+                    retryButtonText: 'Go to Homepage',
                     onRetry: () {
-                      context.read<RedirectCubit>().processRedirect(shortCode);
+                      Navigator.of(context, rootNavigator: true).pop();
+                      context.go('/');
                     },
                   );
                 }
@@ -40,10 +43,7 @@ class RedirectPage extends StatelessWidget {
                   padding: const EdgeInsets.all(24),
                   child: BlocBuilder<RedirectCubit, RedirectState>(
                     builder: (context, state) {
-                      if (state is RedirectLoading) {
-                        return _buildLoadingState(context);
-                      } else if (state is RedirectPasswordRequired ||
-                          state is RedirectPasswordError) {
+                      if (state is RedirectAwaitingPassword) {
                         return _buildPasswordState(context, state);
                       }
                       return _buildLoadingState(context);
@@ -96,19 +96,11 @@ class RedirectPage extends StatelessWidget {
     );
   }
 
-  Widget _buildPasswordState(BuildContext context, RedirectState state) {
+  Widget _buildPasswordState(
+    BuildContext context,
+    RedirectAwaitingPassword state,
+  ) {
     final passwordController = TextEditingController();
-    final isError = state is RedirectPasswordError;
-
-    if (isError) {
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        ErrorDialog.show(
-          context,
-          title: 'Password Error',
-          message: (state).message,
-        );
-      });
-    }
 
     return Container(
       constraints: const BoxConstraints(maxWidth: 400),
@@ -138,18 +130,36 @@ class RedirectPage extends StatelessWidget {
               TextField(
                 controller: passwordController,
                 obscureText: true,
-                decoration: const InputDecoration(
+                autofocus: true,
+                decoration: InputDecoration(
                   labelText: 'Password',
                   hintText: 'Enter password',
-                  prefixIcon: Icon(Icons.key),
+                  prefixIcon: const Icon(Icons.key),
+                  errorText: state.errorMessage,
                 ),
                 onSubmitted: (value) => _submitPassword(context, value),
               ),
               const SizedBox(height: 24),
               ElevatedButton(
+                style: ElevatedButton.styleFrom(
+                  minimumSize: const Size.fromHeight(48),
+                ),
                 onPressed:
-                    () => _submitPassword(context, passwordController.text),
-                child: const Text('Access Link'),
+                    state.isVerifying
+                        ? null
+                        : () =>
+                            _submitPassword(context, passwordController.text),
+                child:
+                    state.isVerifying
+                        ? const SizedBox(
+                          height: 24,
+                          width: 24,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 3,
+                            color: Colors.white,
+                          ),
+                        )
+                        : const Text('Access Link'),
               ),
               const SizedBox(height: 16),
               TextButton(
@@ -167,14 +177,39 @@ class RedirectPage extends StatelessWidget {
     context.read<RedirectCubit>().verifyPassword(shortCode, password);
   }
 
-  Future<void> _launchUrl(String url) async {
+  Future<void> _launchUrl(BuildContext context, String url) async {
     try {
       final uri = Uri.parse(url);
       if (await canLaunchUrl(uri)) {
-        await launchUrl(uri, mode: LaunchMode.platformDefault);
+        await launchUrl(
+          uri,
+          mode: LaunchMode.platformDefault,
+          webOnlyWindowName: kIsWeb ? '_self' : '_blank',
+        );
+      } else {
+        ErrorDialog.show(
+          context,
+          title: 'Invalid URL',
+          message: 'The destination URL could not be opened.',
+          retryButtonText: 'Go to Homepage',
+          onRetry: () {
+            Navigator.of(context, rootNavigator: true).pop();
+            context.go('/');
+          },
+        );
       }
     } catch (e) {
       debugPrint('Error launching URL: $e');
+      ErrorDialog.show(
+        context,
+        title: 'Could Not Open Link',
+        message: 'An unexpected error occurred while trying to open the link.',
+        retryButtonText: 'Go to Homepage',
+        onRetry: () {
+          Navigator.of(context, rootNavigator: true).pop();
+          context.go('/');
+        },
+      );
     }
   }
 }

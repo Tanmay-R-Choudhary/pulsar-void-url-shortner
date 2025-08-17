@@ -10,13 +10,16 @@ class RedirectCubit extends Cubit<RedirectState> {
       super(RedirectInitial());
 
   Future<void> processRedirect(String shortCode) async {
-    emit(RedirectLoading());
+    emit(
+      RedirectLoading(),
+    ); // This is for the INITIAL page load only. It's correct here.
 
     try {
       final redirectModel = await _urlService.getRedirectUrl(shortCode);
 
       if (redirectModel.isPasswordProtected) {
-        emit(RedirectPasswordRequired(shortCode: shortCode));
+        // MODIFIED: Emit our new state to show the password form.
+        emit(RedirectAwaitingPassword(shortCode: shortCode));
       } else {
         if (redirectModel.originalUrl != null &&
             redirectModel.originalUrl!.isNotEmpty) {
@@ -29,7 +32,7 @@ class RedirectCubit extends Cubit<RedirectState> {
           );
         }
       }
-    } catch (e) {
+    } on Exception catch (e) {
       emit(
         RedirectError(message: e.toString().replaceFirst('Exception: ', '')),
       );
@@ -38,16 +41,19 @@ class RedirectCubit extends Cubit<RedirectState> {
 
   Future<void> verifyPassword(String shortCode, String password) async {
     if (password.isEmpty) {
+      // MODIFIED: Emit the same state, but with an error message.
       emit(
-        RedirectPasswordError(
+        RedirectAwaitingPassword(
           shortCode: shortCode,
-          message: 'Please enter a password',
+          errorMessage: 'Please enter a password',
         ),
       );
       return;
     }
 
-    emit(RedirectLoading());
+    // MODIFIED: Emit the state with the loading flag set to true.
+    // The UI will stay on the password screen and show a local loading indicator.
+    emit(RedirectAwaitingPassword(shortCode: shortCode, isVerifying: true));
 
     try {
       final originalUrl = await _urlService.verifyPasswordAndRedirect(
@@ -55,13 +61,22 @@ class RedirectCubit extends Cubit<RedirectState> {
         password,
       );
       emit(RedirectSuccess(originalUrl: originalUrl));
-    } catch (e) {
-      emit(
-        RedirectPasswordError(
-          shortCode: shortCode,
-          message: e.toString().replaceFirst('Exception: ', ''),
-        ),
-      );
+    } on Exception catch (e) {
+      final errorMessage = e.toString().replaceFirst('Exception: ', '');
+      if (errorMessage.toLowerCase().contains('incorrect')) {
+        // MODIFIED: On password error, emit the state with an error message
+        // and turn off the loading flag.
+        emit(
+          RedirectAwaitingPassword(
+            shortCode: shortCode,
+            isVerifying: false,
+            errorMessage: errorMessage,
+          ),
+        );
+      } else {
+        // For other errors (like 404, 410), emit a fatal error.
+        emit(RedirectError(message: errorMessage));
+      }
     }
   }
 

@@ -1,16 +1,19 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 import '../theme/app_theme.dart';
 
 class ErrorDialog extends StatelessWidget {
   final String title;
   final String message;
   final VoidCallback? onRetry;
+  final String? retryButtonText;
 
   const ErrorDialog({
     super.key,
     required this.title,
     required this.message,
     this.onRetry,
+    this.retryButtonText,
   });
 
   @override
@@ -43,13 +46,16 @@ class ErrorDialog extends StatelessWidget {
         if (onRetry != null)
           TextButton(
             onPressed: () {
-              Navigator.of(context).pop();
+              GoRouter.of(context).pop();
               onRetry!();
             },
-            child: Text('Retry', style: TextStyle(color: AppTheme.plasmaGreen)),
+            child: Text(
+              retryButtonText ?? 'Retry',
+              style: TextStyle(color: AppTheme.plasmaGreen),
+            ),
           ),
         TextButton(
-          onPressed: () => Navigator.of(context).pop(),
+          onPressed: () => GoRouter.of(context).pop(),
           child: Text('OK', style: TextStyle(color: AppTheme.plasmaGreen)),
         ),
       ],
@@ -61,12 +67,17 @@ class ErrorDialog extends StatelessWidget {
     required String title,
     required String message,
     VoidCallback? onRetry,
+    String? retryButtonText,
   }) {
     return showDialog<void>(
       context: context,
       builder:
-          (context) =>
-              ErrorDialog(title: title, message: message, onRetry: onRetry),
+          (context) => ErrorDialog(
+            title: title,
+            message: message,
+            onRetry: onRetry,
+            retryButtonText: retryButtonText,
+          ),
     );
   }
 }

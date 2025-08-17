@@ -35,7 +35,7 @@ class UrlShortenerCubit extends Cubit<UrlShortenerState> {
 
       final result = await _urlService.shortenUrl(urlModel);
       emit(UrlShortenerSuccess(urlModel: result));
-    } catch (e) {
+    } on Exception catch (e) {
       emit(
         UrlShortenerError(
           message: e.toString().replaceFirst('Exception: ', ''),

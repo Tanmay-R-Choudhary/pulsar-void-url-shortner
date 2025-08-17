@@ -15,25 +15,62 @@ class UrlService {
     );
   }
 
+  /// Handles Dio-specific errors and translates them into user-friendly exceptions.
+  Exception _handleDioError(DioException e) {
+    if (e.response != null && e.response!.data is Map) {
+      final message =
+          e.response!.data['message'] as String? ??
+          'An unknown server error occurred.';
+      final statusCode = e.response!.statusCode;
+
+      switch (statusCode) {
+        case 400:
+          return Exception(message); // e.g., "Password is missing"
+        case 401:
+          return Exception(
+            'The password you entered is incorrect. Please try again.',
+          );
+        case 404:
+          return Exception(
+            'This void link could not be found. It may have been deleted or never existed.',
+          );
+        case 409:
+          return Exception(
+            'Could not generate a unique link. Please try modifying your URL slightly and try again.',
+          );
+        case 410:
+          return Exception(
+            'This void link has expired and is no longer available.',
+          );
+        case 500:
+          return Exception(
+            'An internal server error occurred. Our team has been notified. Please try again later.',
+          );
+        default:
+          return Exception(message);
+      }
+    } else {
+      return Exception(
+        'Could not connect to the server. Please check your network connection.',
+      );
+    }
+  }
+
   Future<UrlModel> shortenUrl(UrlModel urlModel) async {
     try {
       final response = await _dio.post('/shorten', data: urlModel.toJson());
 
       if (response.statusCode == 200) {
-        return UrlModel.fromJson(response.data);
+        // Assuming the response contains 'original_url' and 'short_code'
+        // We update the original model with the new short_code
+        return urlModel.copyWith(shortCode: response.data['short_code']);
       } else {
         throw Exception('Failed to shorten URL');
       }
     } on DioException catch (e) {
-      if (e.response != null) {
-        throw Exception(
-          'Server error: ${e.response!.data['message'] ?? 'Unknown error'}',
-        );
-      } else {
-        throw Exception('Network error: ${e.message}');
-      }
+      throw _handleDioError(e);
     } catch (e) {
-      throw Exception('Unexpected error: $e');
+      throw Exception('An unexpected error occurred: $e');
     }
   }
 
@@ -44,20 +81,12 @@ class UrlService {
       if (response.statusCode == 200) {
         return RedirectModel.fromJson(response.data);
       } else {
-        throw Exception('URL not found');
+        throw Exception('Failed to retrieve URL');
       }
     } on DioException catch (e) {
-      if (e.response?.statusCode == 404) {
-        throw Exception('Short URL not found');
-      } else if (e.response != null) {
-        throw Exception(
-          'Server error: ${e.response!.data['message'] ?? 'Unknown error'}',
-        );
-      } else {
-        throw Exception('Network error: ${e.message}');
-      }
+      throw _handleDioError(e);
     } catch (e) {
-      throw Exception('Unexpected error: $e');
+      throw Exception('An unexpected error occurred: $e');
     }
   }
 
@@ -71,25 +100,15 @@ class UrlService {
         data: {'short_code': shortCode, 'password': password},
       );
 
-      if (response.statusCode == 200) {
+      if (response.statusCode == 200 && response.data['original_url'] != null) {
         return response.data['original_url'];
       } else {
-        throw Exception('Invalid password');
+        throw Exception('Failed to verify password.');
       }
     } on DioException catch (e) {
-      if (e.response?.statusCode == 401) {
-        throw Exception('Invalid password');
-      } else if (e.response?.statusCode == 404) {
-        throw Exception('Short URL not found');
-      } else if (e.response != null) {
-        throw Exception(
-          'Server error: ${e.response!.data['message'] ?? 'Unknown error'}',
-        );
-      } else {
-        throw Exception('Network error: ${e.message}');
-      }
+      throw _handleDioError(e);
     } catch (e) {
-      throw Exception('Unexpected error: $e');
+      throw Exception('An unexpected error occurred: $e');
     }
   }
 }
