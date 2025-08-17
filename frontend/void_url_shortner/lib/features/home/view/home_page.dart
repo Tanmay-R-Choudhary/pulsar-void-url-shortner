@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:toastification/toastification.dart';
+import 'package:void_url_shortner/features/home/models/url_model.dart';
 import '../cubit/url_shortener_cubit.dart';
 import '../cubit/url_shortener_state.dart';
 import '../../../shared/theme/app_theme.dart';
@@ -11,9 +13,14 @@ import '../../../shared/widgets/responsive_wrapper.dart';
 import '../../../shared/widgets/error_dialog.dart';
 import '../../../shared/utils/constants.dart';
 
-class HomePage extends StatelessWidget {
+class HomePage extends StatefulWidget {
   const HomePage({super.key});
 
+  @override
+  State<HomePage> createState() => _HomePageState();
+}
+
+class _HomePageState extends State<HomePage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -22,62 +29,87 @@ class HomePage extends StatelessWidget {
           const PulsarBackground(),
           SafeArea(
             child: ResponsiveWrapper(
-              child: SingleChildScrollView(
-                child: LayoutBuilder(
-                  builder: (context, constraints) {
-                    final isDesktop = constraints.maxWidth > 1024;
+              child: Scrollbar(
+                thumbVisibility: false,
+                trackVisibility: false,
+                controller: PrimaryScrollController.of(context),
+                child: SingleChildScrollView(
+                  child: LayoutBuilder(
+                    builder: (context, constraints) {
+                      final isDesktop = constraints.maxWidth > 1024;
 
-                    return Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        SizedBox(height: isDesktop ? 60 : 40),
-                        _buildHeader(context, isDesktop),
-                        const SizedBox(height: 24),
-                        _buildExpirationNotice(context),
-                        SizedBox(height: isDesktop ? 56 : 36),
-                        BlocConsumer<UrlShortenerCubit, UrlShortenerState>(
-                          listener: (context, state) {
-                            if (state is UrlShortenerError) {
-                              ErrorDialog.show(
-                                context,
-                                title: 'Error',
-                                message: state.message,
-                                onRetry: () {
-                                  context.read<UrlShortenerCubit>().reset();
-                                },
-                              );
-                            } else if (state is UrlCopiedToClipboard) {
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                SnackBar(
-                                  content: Text(
+                      return Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          SizedBox(height: isDesktop ? 60 : 40),
+                          _buildHeader(context, isDesktop),
+                          const SizedBox(height: 24),
+                          _buildExpirationNotice(context),
+                          SizedBox(height: isDesktop ? 56 : 36),
+                          BlocConsumer<UrlShortenerCubit, UrlShortenerState>(
+                            listener: (context, state) {
+                              if (state is UrlShortenerError) {
+                                ErrorDialog.show(
+                                  context,
+                                  title: 'Error',
+                                  message: state.message,
+                                  onRetry: () {
+                                    context.read<UrlShortenerCubit>().reset();
+                                  },
+                                );
+                              } else if (state is UrlCopiedToClipboard) {
+                                toastification.show(
+                                  context: context,
+                                  title: Text(
                                     'Copied to clipboard!',
-                                    style: GoogleFonts.inter(),
+                                    style: GoogleFonts.inter(
+                                      color: Colors.white,
+                                      fontWeight: FontWeight.w500,
+                                    ),
                                   ),
+                                  autoCloseDuration: const Duration(seconds: 3),
+                                  type: ToastificationType.success,
+                                  style: ToastificationStyle.flat,
                                   backgroundColor: AppTheme.successGreen,
-                                  duration: const Duration(seconds: 1),
-                                ),
+                                  foregroundColor: Colors.white,
+                                  icon: const Icon(
+                                    Icons.check_circle_outline,
+                                    color: Colors.white,
+                                  ),
+                                  showProgressBar: false,
+                                  closeButton: ToastCloseButton(
+                                    showType: CloseButtonShowType.none,
+                                  ),
+                                );
+                              }
+                            },
+                            builder: (context, state) {
+                              UrlModel? urlModel;
+                              if (state is UrlShortenerSuccess) {
+                                urlModel = state.urlModel;
+                              } else if (state is UrlCopiedToClipboard) {
+                                urlModel = state.urlModel;
+                              }
+
+                              return Column(
+                                children: [
+                                  const UrlInputCard(),
+                                  const SizedBox(height: 32),
+                                  if (state is UrlShortenerLoading)
+                                    _buildLoadingIndicator(),
+                                  if (urlModel != null)
+                                    ResultCard(urlModel: urlModel),
+                                ],
                               );
-                            }
-                          },
-                          builder: (context, state) {
-                            return Column(
-                              children: [
-                                const UrlInputCard(),
-                                const SizedBox(height: 32),
-                                if (state is UrlShortenerLoading)
-                                  _buildLoadingIndicator(),
-                                if (state is UrlShortenerSuccess)
-                                  ResultCard(urlModel: state.urlModel),
-                              ],
-                            );
-                          },
-                        ),
-                        // SizedBox(height: isDesktop ? 60 : 40),
-                        // _buildFooter(context),
-                        // const SizedBox(height: 40),
-                      ],
-                    );
-                  },
+                            },
+                          ),
+                          // SizedBox(height: isDesktop ? 60 : 40),
+                          // _buildFooter(context),
+                          // const SizedBox(height: 40),
+                        ],
+                      );
+                    },
+                  ),
                 ),
               ),
             ),
@@ -193,34 +225,4 @@ class HomePage extends StatelessWidget {
       ),
     );
   }
-
-  // Widget _buildFooter(BuildContext context) {
-  //   return Column(
-  //     children: [
-  //       Text(
-  //         'Part of the pulsar project',
-  //         style: GoogleFonts.questrial(
-  //           color: AppTheme.dimStar.withValues(alpha: 0.6),
-  //           fontSize: 12,
-  //           fontWeight: FontWeight.w300,
-  //           letterSpacing: 1,
-  //         ),
-  //       ),
-  //       const SizedBox(height: 8),
-  //       Container(
-  //         width: 60,
-  //         height: 2,
-  //         decoration: BoxDecoration(
-  //           gradient: LinearGradient(
-  //             colors: [
-  //               AppTheme.magneticField.withValues(alpha: 0.0),
-  //               AppTheme.magneticField,
-  //               AppTheme.magneticField.withValues(alpha: 0.0),
-  //             ],
-  //           ),
-  //         ),
-  //       ),
-  //     ],
-  //   );
-  // }
 }

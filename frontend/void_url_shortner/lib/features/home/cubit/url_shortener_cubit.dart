@@ -46,14 +46,16 @@ class UrlShortenerCubit extends Cubit<UrlShortenerState> {
 
   Future<void> copyToClipboard(String url) async {
     try {
-      await Clipboard.setData(ClipboardData(text: url));
-      emit(UrlCopiedToClipboard(copiedUrl: url));
+      UrlModel? currentModel;
+      if (state is UrlShortenerSuccess) {
+        currentModel = (state as UrlShortenerSuccess).urlModel;
+      } else if (state is UrlCopiedToClipboard) {
+        currentModel = (state as UrlCopiedToClipboard).urlModel;
+      }
 
-      await Future.delayed(const Duration(seconds: 2));
-      if (state is UrlCopiedToClipboard) {
-        final shortCode = url.split('/').last;
-        final urlModel = UrlModel(originalUrl: '', shortCode: shortCode);
-        emit(UrlShortenerSuccess(urlModel: urlModel));
+      if (currentModel != null) {
+        await Clipboard.setData(ClipboardData(text: url));
+        emit(UrlCopiedToClipboard(urlModel: currentModel));
       }
     } catch (e) {
       emit(const UrlShortenerError(message: 'Failed to copy to clipboard'));

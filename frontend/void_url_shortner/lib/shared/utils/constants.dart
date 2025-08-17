@@ -1,7 +1,12 @@
+import 'package:flutter/foundation.dart';
+
 class AppConstants {
   static const String appName = 'void';
-  static const String baseApiUrl = 'https://api.yourdomain.com/api';
-  static const String domain = 'https://yourdomain.com';
+  static const String baseApiUrl = 'http://localhost:8080/api';
+  static String domain =
+      kReleaseMode
+          ? "${Uri.base.scheme}://${Uri.base.host}"
+          : "${Uri.base.scheme}://${Uri.base.host}:${Uri.base.port}";
   static const Duration apiTimeout = Duration(seconds: 10);
 
   static const String appVersion = '1.0.0';

@@ -31,10 +31,12 @@ class UrlShortenerError extends UrlShortenerState {
 }
 
 class UrlCopiedToClipboard extends UrlShortenerState {
-  final String copiedUrl;
+  final UrlModel urlModel;
+  final int timestamp;
 
-  const UrlCopiedToClipboard({required this.copiedUrl});
+  UrlCopiedToClipboard({required this.urlModel})
+    : timestamp = DateTime.now().millisecondsSinceEpoch;
 
   @override
-  List<Object?> get props => [copiedUrl];
+  List<Object?> get props => [urlModel, timestamp];
 }

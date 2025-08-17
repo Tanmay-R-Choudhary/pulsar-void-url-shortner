@@ -5,7 +5,8 @@ import lombok.Data;
 
 @Data
 @AllArgsConstructor
-public class SendCodeDataDto {
-    private String code;
-    private String longUrl;
+public class ErrorResponseDto {
+    private int statusCode;
+    private String message;
+    private long timestamp;
 }
