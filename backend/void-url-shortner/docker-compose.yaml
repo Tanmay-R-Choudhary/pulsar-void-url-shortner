@@ -11,6 +11,15 @@ services:
     volumes:
       - mongo-data:/data/db
 
+  redis:
+    image: redis:latest
+    container_name: redis
+    restart: always
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis-data:/data
+
   springboot-app:
     build: .
     container_name: springboot-app
@@ -19,8 +28,12 @@ services:
       - "8080:8080"
     environment:
       - MONGO_URI=mongodb://root:examplepassword@mongodb:27017/shorturls?authSource=admin
+      - SPRING_CACHE_HOST=redis
+      - REDIS_TTL=600000
     depends_on:
       - mongodb
+      - redis
 
 volumes:
   mongo-data:
+  redis-data:

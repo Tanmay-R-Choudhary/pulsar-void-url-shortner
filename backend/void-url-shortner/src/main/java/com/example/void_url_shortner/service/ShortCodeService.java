@@ -8,6 +8,7 @@ import com.example.void_url_shortner.model.ShortCode;
 import com.example.void_url_shortner.repository.ShortCodeRepository;
 import com.example.void_url_shortner.utils.ShortCodeGenerator;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
@@ -71,6 +72,7 @@ public class ShortCodeService {
         }
     }
 
+    @Cacheable(value = "shortCode")
     public RedirectCodeResponseDto getRedirectInfo(String code) throws CodeNotFoundException, CodeExpiredException {
         ShortCode shortCode = this.getShortCode(code);
 
