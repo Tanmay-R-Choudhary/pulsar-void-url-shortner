@@ -1,13 +1,14 @@
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:url_launcher/url_launcher.dart';
 import 'package:go_router/go_router.dart';
-import 'package:flutter/foundation.dart' show kIsWeb;
+import 'package:universal_html/html.dart' as html;
+import 'package:url_launcher/url_launcher.dart';
 import '../cubit/redirect_cubit.dart';
 import '../cubit/redirect_state.dart';
 import '../../../shared/theme/app_theme.dart';
-import '../../../shared/widgets/pulsar_background.dart';
 import '../../../shared/widgets/error_dialog.dart';
+import '../../../shared/widgets/pulsar_background.dart';
 
 class RedirectPage extends StatelessWidget {
   final String shortCode;
@@ -24,7 +25,7 @@ class RedirectPage extends StatelessWidget {
             child: BlocListener<RedirectCubit, RedirectState>(
               listener: (context, state) {
                 if (state is RedirectSuccess) {
-                  _launchUrl(context, state.originalUrl);
+                  _launchUrl(context, state.destinationUrl, state.isFile);
                 } else if (state is RedirectError) {
                   ErrorDialog.show(
                     context,
@@ -32,8 +33,7 @@ class RedirectPage extends StatelessWidget {
                     message: state.message,
                     retryButtonText: 'Go to Homepage',
                     onRetry: () {
-                      Navigator.of(context, rootNavigator: true).pop();
-                      context.go('/');
+                      GoRouter.of(context).go('/');
                     },
                   );
                 }
@@ -45,6 +45,9 @@ class RedirectPage extends StatelessWidget {
                     builder: (context, state) {
                       if (state is RedirectAwaitingPassword) {
                         return _buildPasswordState(context, state);
+                      }
+                      if (state is RedirectSuccess && state.isFile) {
+                        return _buildDownloadingState(context);
                       }
                       return _buildLoadingState(context);
                     },
@@ -67,7 +70,7 @@ class RedirectPage extends StatelessWidget {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              SizedBox(
+              const SizedBox(
                 width: 60,
                 height: 60,
                 child: CircularProgressIndicator(
@@ -84,10 +87,46 @@ class RedirectPage extends StatelessWidget {
               ),
               const SizedBox(height: 8),
               Text(
-                'Please wait while we redirect you',
+                'Please wait while we prepare your destination',
                 style: Theme.of(
                   context,
                 ).textTheme.bodyMedium?.copyWith(color: AppTheme.dimStar),
+                textAlign: TextAlign.center,
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildDownloadingState(BuildContext context) {
+    return Container(
+      constraints: const BoxConstraints(maxWidth: 400),
+      child: Card(
+        child: Padding(
+          padding: const EdgeInsets.all(32),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Icon(
+                Icons.downloading,
+                size: 60,
+                color: AppTheme.plasmaGreen,
+              ),
+              const SizedBox(height: 24),
+              Text(
+                'Your download is starting...',
+                style: Theme.of(context).textTheme.titleLarge,
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 8),
+              Text(
+                'If your download does not begin automatically, please check your browser.',
+                style: Theme.of(
+                  context,
+                ).textTheme.bodyMedium?.copyWith(color: AppTheme.dimStar),
+                textAlign: TextAlign.center,
               ),
             ],
           ),
@@ -111,7 +150,7 @@ class RedirectPage extends StatelessWidget {
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              Icon(Icons.lock, size: 48, color: AppTheme.magneticField),
+              const Icon(Icons.lock, size: 48, color: AppTheme.magneticField),
               const SizedBox(height: 16),
               Text(
                 'Password Required',
@@ -177,39 +216,53 @@ class RedirectPage extends StatelessWidget {
     context.read<RedirectCubit>().verifyPassword(shortCode, password);
   }
 
-  Future<void> _launchUrl(BuildContext context, String url) async {
+  Future<void> _launchUrl(BuildContext context, String url, bool isFile) async {
+    // For web, the most reliable way to trigger a download is using an anchor tag.
+    if (isFile && kIsWeb) {
+      final anchor =
+          html.AnchorElement(href: url)
+            ..setAttribute('download', '') // The 'download' attribute is key
+            ..style.display = 'none';
+      html.document.body?.children.add(anchor);
+      anchor.click();
+      html.document.body?.children.remove(anchor);
+      return;
+    }
+
+    // For mobile or standard URL redirects on web
     try {
       final uri = Uri.parse(url);
       if (await canLaunchUrl(uri)) {
         await launchUrl(
           uri,
-          mode: LaunchMode.platformDefault,
+          mode:
+              isFile
+                  ? LaunchMode
+                      .externalApplication // Let OS handle download
+                  : LaunchMode.platformDefault,
           webOnlyWindowName: kIsWeb ? '_self' : '_blank',
         );
       } else {
-        ErrorDialog.show(
-          context,
-          title: 'Invalid URL',
-          message: 'The destination URL could not be opened.',
-          retryButtonText: 'Go to Homepage',
-          onRetry: () {
-            Navigator.of(context, rootNavigator: true).pop();
-            context.go('/');
-          },
-        );
+        _showLaunchError(context, 'The destination could not be opened.');
       }
     } catch (e) {
       debugPrint('Error launching URL: $e');
-      ErrorDialog.show(
+      _showLaunchError(
         context,
-        title: 'Could Not Open Link',
-        message: 'An unexpected error occurred while trying to open the link.',
-        retryButtonText: 'Go to Homepage',
-        onRetry: () {
-          Navigator.of(context, rootNavigator: true).pop();
-          context.go('/');
-        },
+        'An unexpected error occurred while opening the link.',
       );
     }
+  }
+
+  void _showLaunchError(BuildContext context, String message) {
+    ErrorDialog.show(
+      context,
+      title: 'Could Not Open Link',
+      message: message,
+      retryButtonText: 'Go to Homepage',
+      onRetry: () {
+        GoRouter.of(context).go('/');
+      },
+    );
   }
 }

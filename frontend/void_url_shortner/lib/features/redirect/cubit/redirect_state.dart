@@ -11,11 +11,6 @@ class RedirectInitial extends RedirectState {}
 
 class RedirectLoading extends RedirectState {}
 
-// REMOVED: These two states will be replaced.
-// class RedirectPasswordRequired extends RedirectState { ... }
-// class RedirectPasswordError extends RedirectState { ... }
-
-// ADDED: A new, comprehensive state for the password screen.
 class RedirectAwaitingPassword extends RedirectState {
   final String shortCode;
   final bool isVerifying;
@@ -23,8 +18,8 @@ class RedirectAwaitingPassword extends RedirectState {
 
   const RedirectAwaitingPassword({
     required this.shortCode,
-    this.isVerifying = false, // Indicates if the password is being checked
-    this.errorMessage, // Holds the error message for incorrect passwords
+    this.isVerifying = false,
+    this.errorMessage,
   });
 
   @override
@@ -32,12 +27,13 @@ class RedirectAwaitingPassword extends RedirectState {
 }
 
 class RedirectSuccess extends RedirectState {
-  final String originalUrl;
+  final String destinationUrl;
+  final bool isFile;
 
-  const RedirectSuccess({required this.originalUrl});
+  const RedirectSuccess({required this.destinationUrl, required this.isFile});
 
   @override
-  List<Object?> get props => [originalUrl];
+  List<Object?> get props => [destinationUrl, isFile];
 }
 
 class RedirectError extends RedirectState {

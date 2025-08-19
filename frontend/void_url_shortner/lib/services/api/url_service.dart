@@ -1,11 +1,13 @@
+import 'dart:typed_data';
 import 'package:dio/dio.dart';
 import 'package:void_url_shortner/features/home/models/url_model.dart';
 import 'package:void_url_shortner/shared/utils/constants.dart';
 
 class UrlService {
   final Dio _dio;
+  final Dio _s3Dio;
 
-  UrlService() : _dio = Dio() {
+  UrlService() : _dio = Dio(), _s3Dio = Dio() {
     _dio.options.baseUrl = AppConstants.baseApiUrl;
     _dio.options.connectTimeout = AppConstants.apiTimeout;
     _dio.options.receiveTimeout = AppConstants.apiTimeout;
@@ -13,6 +15,10 @@ class UrlService {
     _dio.interceptors.add(
       LogInterceptor(requestBody: true, responseBody: true),
     );
+
+    // A separate Dio instance for S3 uploads, without base URL or auth tokens.
+    _s3Dio.options.connectTimeout = const Duration(minutes: 5);
+    _s3Dio.options.receiveTimeout = const Duration(minutes: 5);
   }
 
   /// Handles Dio-specific errors and translates them into user-friendly exceptions.
@@ -56,21 +62,53 @@ class UrlService {
     }
   }
 
-  Future<UrlModel> shortenUrl(UrlModel urlModel) async {
+  Future<ShortCodeModel> createShortCode(ShortCodeModel shortCodeModel) async {
     try {
-      final response = await _dio.post('/shorten', data: urlModel.toJson());
+      final response = await _dio.post(
+        '/shorten',
+        data: shortCodeModel.toCreateJson(),
+      );
 
       if (response.statusCode == 200) {
-        // Assuming the response contains 'original_url' and 'short_code'
-        // We update the original model with the new short_code
-        return urlModel.copyWith(shortCode: response.data['short_code']);
+        final result = ShortCodeModel.fromCreateJson(response.data);
+        // Preserve the original data (like password) and add the new data
+        return shortCodeModel.copyWith(
+          shortCode: result.shortCode,
+          fileUploadUrl: result.fileUploadUrl,
+        );
       } else {
-        throw Exception('Failed to shorten URL');
+        throw Exception('Failed to create a short code.');
       }
     } on DioException catch (e) {
       throw _handleDioError(e);
     } catch (e) {
       throw Exception('An unexpected error occurred: $e');
+    }
+  }
+
+  Future<void> uploadFile(
+    String uploadUrl,
+    Uint8List fileBytes,
+    String contentType,
+  ) async {
+    try {
+      await _s3Dio.put(
+        uploadUrl,
+        data: Stream.fromIterable(fileBytes.map((e) => [e])),
+        options: Options(
+          headers: {
+            Headers.contentLengthHeader: fileBytes.length,
+            Headers.contentTypeHeader: contentType,
+          },
+        ),
+      );
+    } on DioException catch (e) {
+      // S3 might return a more complex error structure
+      throw Exception(
+        'Failed to upload file. Please try again. Error: ${e.message}',
+      );
+    } catch (e) {
+      throw Exception('An unexpected error occurred during file upload: $e');
     }
   }
 
@@ -90,7 +128,7 @@ class UrlService {
     }
   }
 
-  Future<String> verifyPasswordAndRedirect(
+  Future<VerifyPasswordResponseModel> verifyPassword(
     String shortCode,
     String password,
   ) async {
@@ -100,8 +138,8 @@ class UrlService {
         data: {'short_code': shortCode, 'password': password},
       );
 
-      if (response.statusCode == 200 && response.data['original_url'] != null) {
-        return response.data['original_url'];
+      if (response.statusCode == 200) {
+        return VerifyPasswordResponseModel.fromJson(response.data);
       } else {
         throw Exception('Failed to verify password.');
       }

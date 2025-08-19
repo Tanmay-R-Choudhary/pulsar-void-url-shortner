@@ -46,66 +46,7 @@ class _HomePageState extends State<HomePage> {
                           const SizedBox(height: 24),
                           _buildExpirationNotice(context),
                           SizedBox(height: isDesktop ? 56 : 36),
-                          BlocConsumer<UrlShortenerCubit, UrlShortenerState>(
-                            listener: (context, state) {
-                              if (state is UrlShortenerError) {
-                                ErrorDialog.show(
-                                  context,
-                                  title: 'Error',
-                                  message: state.message,
-                                  onRetry: () {
-                                    context.read<UrlShortenerCubit>().reset();
-                                  },
-                                );
-                              } else if (state is UrlCopiedToClipboard) {
-                                toastification.show(
-                                  context: context,
-                                  title: Text(
-                                    'Copied to clipboard!',
-                                    style: GoogleFonts.inter(
-                                      color: Colors.white,
-                                      fontWeight: FontWeight.w500,
-                                    ),
-                                  ),
-                                  autoCloseDuration: const Duration(seconds: 3),
-                                  type: ToastificationType.success,
-                                  style: ToastificationStyle.flat,
-                                  backgroundColor: AppTheme.successGreen,
-                                  foregroundColor: Colors.white,
-                                  icon: const Icon(
-                                    Icons.check_circle_outline,
-                                    color: Colors.white,
-                                  ),
-                                  showProgressBar: false,
-                                  closeButton: ToastCloseButton(
-                                    showType: CloseButtonShowType.none,
-                                  ),
-                                );
-                              }
-                            },
-                            builder: (context, state) {
-                              UrlModel? urlModel;
-                              if (state is UrlShortenerSuccess) {
-                                urlModel = state.urlModel;
-                              } else if (state is UrlCopiedToClipboard) {
-                                urlModel = state.urlModel;
-                              }
-
-                              return Column(
-                                children: [
-                                  const UrlInputCard(),
-                                  const SizedBox(height: 32),
-                                  if (state is UrlShortenerLoading)
-                                    _buildLoadingIndicator(),
-                                  if (urlModel != null)
-                                    ResultCard(urlModel: urlModel),
-                                ],
-                              );
-                            },
-                          ),
-                          // SizedBox(height: isDesktop ? 60 : 40),
-                          // _buildFooter(context),
-                          // const SizedBox(height: 40),
+                          _buildBlocContent(),
                         ],
                       );
                     },
@@ -119,6 +60,64 @@ class _HomePageState extends State<HomePage> {
     );
   }
 
+  Widget _buildBlocContent() {
+    return BlocConsumer<UrlShortenerCubit, UrlShortenerState>(
+      listener: (context, state) {
+        if (state is UrlShortenerError) {
+          ErrorDialog.show(
+            context,
+            title: 'Error',
+            message: state.message,
+            onRetry: () => context.read<UrlShortenerCubit>().reset(),
+          );
+        } else if (state is UrlCopiedToClipboard) {
+          toastification.show(
+            context: context,
+            title: Text(
+              'Copied to clipboard!',
+              style: GoogleFonts.inter(
+                color: Colors.white,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+            autoCloseDuration: const Duration(seconds: 3),
+            type: ToastificationType.success,
+            style: ToastificationStyle.flat,
+            backgroundColor: AppTheme.successGreen,
+            foregroundColor: Colors.white,
+            icon: const Icon(Icons.check_circle_outline, color: Colors.white),
+            showProgressBar: false,
+            closeButton: const ToastCloseButton(
+              showType: CloseButtonShowType.none,
+            ),
+          );
+        }
+      },
+      builder: (context, state) {
+        ShortCodeModel? shortCodeModel;
+        if (state is UrlShortenerSuccess) {
+          shortCodeModel = state.shortCodeModel;
+        } else if (state is UrlCopiedToClipboard) {
+          shortCodeModel = state.shortCodeModel;
+        }
+
+        final bool showInputCard =
+            state is! UrlShortenerSuccess && state is! UrlCopiedToClipboard;
+
+        return Column(
+          children: [
+            if (showInputCard) const UrlInputCard(),
+            const SizedBox(height: 32),
+            if (state is UrlShortenerLoading)
+              _buildLoadingIndicator(state.message),
+            if (shortCodeModel != null)
+              ResultCard(shortCodeModel: shortCodeModel),
+          ],
+        );
+      },
+    );
+  }
+
   Widget _buildHeader(BuildContext context, bool isDesktop) {
     return Column(
       children: [
@@ -127,19 +126,19 @@ class _HomePageState extends State<HomePage> {
           decoration: BoxDecoration(
             shape: BoxShape.circle,
             border: Border.all(
-              color: AppTheme.plasmaGreen.withValues(alpha: 0.3),
+              color: AppTheme.plasmaGreen.withOpacity(0.3),
               width: 2,
             ),
             boxShadow: [
               BoxShadow(
-                color: AppTheme.plasmaGreen.withValues(alpha: 0.2),
+                color: AppTheme.plasmaGreen.withOpacity(0.2),
                 blurRadius: 20,
                 spreadRadius: 5,
               ),
             ],
           ),
           child: Icon(
-            Icons.link,
+            Icons.public, // Changed icon
             size: isDesktop ? 60 : 48,
             color: AppTheme.plasmaGreen,
           ),
@@ -156,7 +155,7 @@ class _HomePageState extends State<HomePage> {
         ),
         const SizedBox(height: 8),
         Text(
-          'Shorten URLs into the void',
+          'Shorten URLs & Store Files in the void', // Updated subtitle
           style: GoogleFonts.inter(
             color: AppTheme.dimStar,
             fontSize: isDesktop ? 18 : 16,
@@ -173,10 +172,10 @@ class _HomePageState extends State<HomePage> {
       margin: const EdgeInsets.symmetric(horizontal: 16),
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: AppTheme.deepSpace.withValues(alpha: 0.7),
+        color: AppTheme.deepSpace.withOpacity(0.7),
         borderRadius: BorderRadius.circular(12),
         border: Border.all(
-          color: AppTheme.neutronWhite.withValues(alpha: 0.3),
+          color: AppTheme.neutronWhite.withOpacity(0.3),
           width: 1,
         ),
       ),
@@ -186,7 +185,7 @@ class _HomePageState extends State<HomePage> {
           const SizedBox(width: 12),
           Expanded(
             child: Text(
-              'Links expire after ${AppConstants.urlExpirationHours} hours and are automatically deleted',
+              'Links and files expire after ${AppConstants.urlExpirationHours} hours and are automatically deleted', // Updated text
               style: GoogleFonts.inter(
                 color: AppTheme.dimStar,
                 fontSize: 13,
@@ -199,12 +198,12 @@ class _HomePageState extends State<HomePage> {
     );
   }
 
-  Widget _buildLoadingIndicator() {
+  Widget _buildLoadingIndicator(String message) {
     return Container(
       padding: const EdgeInsets.all(24),
       child: Column(
         children: [
-          SizedBox(
+          const SizedBox(
             width: 40,
             height: 40,
             child: CircularProgressIndicator(
@@ -214,7 +213,7 @@ class _HomePageState extends State<HomePage> {
           ),
           const SizedBox(height: 16),
           Text(
-            'Creating your void link...',
+            message,
             style: GoogleFonts.inter(
               color: AppTheme.dimStar,
               fontSize: 14,

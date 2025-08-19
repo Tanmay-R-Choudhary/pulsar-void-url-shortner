@@ -10,24 +10,26 @@ class RedirectCubit extends Cubit<RedirectState> {
       super(RedirectInitial());
 
   Future<void> processRedirect(String shortCode) async {
-    emit(
-      RedirectLoading(),
-    ); // This is for the INITIAL page load only. It's correct here.
+    emit(RedirectLoading());
 
     try {
       final redirectModel = await _urlService.getRedirectUrl(shortCode);
 
       if (redirectModel.isPasswordProtected) {
-        // MODIFIED: Emit our new state to show the password form.
         emit(RedirectAwaitingPassword(shortCode: shortCode));
       } else {
-        if (redirectModel.originalUrl != null &&
-            redirectModel.originalUrl!.isNotEmpty) {
-          emit(RedirectSuccess(originalUrl: redirectModel.originalUrl!));
+        if (redirectModel.destinationUrl != null &&
+            redirectModel.destinationUrl!.isNotEmpty) {
+          emit(
+            RedirectSuccess(
+              destinationUrl: redirectModel.destinationUrl!,
+              isFile: redirectModel.isFile,
+            ),
+          );
         } else {
           emit(
             const RedirectError(
-              message: 'Could not retrieve the original URL.',
+              message: 'Could not retrieve the destination location.',
             ),
           );
         }
@@ -41,7 +43,6 @@ class RedirectCubit extends Cubit<RedirectState> {
 
   Future<void> verifyPassword(String shortCode, String password) async {
     if (password.isEmpty) {
-      // MODIFIED: Emit the same state, but with an error message.
       emit(
         RedirectAwaitingPassword(
           shortCode: shortCode,
@@ -51,21 +52,32 @@ class RedirectCubit extends Cubit<RedirectState> {
       return;
     }
 
-    // MODIFIED: Emit the state with the loading flag set to true.
-    // The UI will stay on the password screen and show a local loading indicator.
     emit(RedirectAwaitingPassword(shortCode: shortCode, isVerifying: true));
 
     try {
-      final originalUrl = await _urlService.verifyPasswordAndRedirect(
+      // CORRECTED: Call the new 'verifyPassword' method
+      final responseModel = await _urlService.verifyPassword(
         shortCode,
         password,
       );
-      emit(RedirectSuccess(originalUrl: originalUrl));
+
+      // CORRECTED: Handle the new 'VerifyPasswordResponseModel'
+      if (responseModel.destinationUrl != null &&
+          responseModel.destinationUrl!.isNotEmpty) {
+        emit(
+          RedirectSuccess(
+            destinationUrl: responseModel.destinationUrl!,
+            isFile: responseModel.isFile,
+          ),
+        );
+      } else {
+        throw Exception(
+          'Password verified, but no destination URL was returned.',
+        );
+      }
     } on Exception catch (e) {
       final errorMessage = e.toString().replaceFirst('Exception: ', '');
       if (errorMessage.toLowerCase().contains('incorrect')) {
-        // MODIFIED: On password error, emit the state with an error message
-        // and turn off the loading flag.
         emit(
           RedirectAwaitingPassword(
             shortCode: shortCode,
@@ -74,7 +86,6 @@ class RedirectCubit extends Cubit<RedirectState> {
           ),
         );
       } else {
-        // For other errors (like 404, 410), emit a fatal error.
         emit(RedirectError(message: errorMessage));
       }
     }
