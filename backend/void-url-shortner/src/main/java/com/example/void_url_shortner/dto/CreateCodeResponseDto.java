@@ -10,6 +10,12 @@ public class CreateCodeResponseDto {
     @JsonProperty("short_code")
     private String code;
 
+    @JsonProperty("is_file")
+    private boolean isFile;
+
     @JsonProperty("original_url")
     private String longUrl;
+
+    @JsonProperty("file_upload_url")
+    private String fileUploadUrl;
 }

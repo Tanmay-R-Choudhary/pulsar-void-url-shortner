@@ -7,6 +7,12 @@ import lombok.Data;
 @Data
 @AllArgsConstructor
 public class VerifyPasswordResponseDto {
+    @JsonProperty("is_file")
+    private boolean isFile;
+
     @JsonProperty("original_url")
     private String longUrl;
+
+    @JsonProperty("file_download_url")
+    private String fileDownloadUrl;
 }

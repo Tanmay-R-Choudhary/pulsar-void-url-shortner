@@ -26,7 +26,9 @@ public class ShortCodeController {
     public ResponseEntity<CreateCodeResponseDto> createShortCode(@RequestBody CreateCodeRequestDto createCodeRequestDto) {
         CreateCodeResponseDto response = service.createShortCode(
                 createCodeRequestDto.getPassword(),
-                createCodeRequestDto.getLongUrl()
+                createCodeRequestDto.isFile(),
+                createCodeRequestDto.getLongUrl(),
+                createCodeRequestDto.getFilename()
         );
 
         return ResponseEntity.ok().body(response);

@@ -7,6 +7,7 @@ import com.example.void_url_shortner.exceptions.*;
 import com.example.void_url_shortner.model.ShortCode;
 import com.example.void_url_shortner.repository.ShortCodeRepository;
 import com.example.void_url_shortner.utils.ShortCodeGenerator;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -24,22 +25,28 @@ public class ShortCodeService {
     private final int expirationHours;
     private final ShortCodeRepository shortCodeRepository;
     private final PasswordEncoder passwordEncoder;
+    private final S3Service s3Service;
 
+    @Autowired
     public ShortCodeService(
             @Value("${url-shortener.collision.retries}") int collisionRetries,
             @Value("${url-shortener.expiration.hours}") int expirationHours,
             ShortCodeRepository shortCodeRepository,
-            PasswordEncoder passwordEncoder
+            PasswordEncoder passwordEncoder,
+            S3Service s3Service
     ) {
         this.collisionRetries = collisionRetries;
         this.expirationHours = expirationHours;
         this.shortCodeRepository = shortCodeRepository;
         this.passwordEncoder = passwordEncoder;
+        this.s3Service = s3Service;
     }
 
-    ThreadLocalRandom random = ThreadLocalRandom.current();
-
-    public CreateCodeResponseDto createShortCode(String password, String longUrl) throws HashingAlgorithmException, RepeatedCollisionException {
+    public CreateCodeResponseDto createShortCode(
+            String password,
+            boolean isFile,
+            String longUrl,
+            String filename) throws HashingAlgorithmException, RepeatedCollisionException {
         try {
             String hashedPassword = null;
             if (password != null) {
@@ -49,20 +56,30 @@ public class ShortCodeService {
             Date creationTimestamp = new Date();
 
             for (int i = 0 ; i < collisionRetries; i++) {
-                String code = ShortCodeGenerator.getCode(longUrl, random.nextInt());
+                String code = ShortCodeGenerator.getCode(
+                        isFile ? filename : longUrl,
+                        ThreadLocalRandom.current().nextInt()
+                );
                 Optional<ShortCode> existingCode = shortCodeRepository.findById(code);
                 boolean hasNotCollided = existingCode.map(value -> value.getExpirationTime().before(creationTimestamp)).orElse(true);
 
                 if (hasNotCollided) {
                     ShortCode shortCode = new ShortCode(
                             code,
+                            isFile,
                             longUrl,
+                            filename,
                             hashedPassword,
                             creationTimestamp,
                             new Date(creationTimestamp.getTime() + TimeUnit.HOURS.toMillis(expirationHours))
                     );
                     shortCodeRepository.save(shortCode);
-                    return new CreateCodeResponseDto(shortCode.getCode(), shortCode.getLongUrl());
+                    return new CreateCodeResponseDto(
+                            shortCode.getCode(),
+                            shortCode.isFile(),
+                            shortCode.isFile() ? null : shortCode.getLongUrl(),
+                            shortCode.isFile() ? s3Service.generatePreSignedUrlForPut(this.getFilePath(shortCode)) : null
+                    );
                 }
             }
 
@@ -72,25 +89,30 @@ public class ShortCodeService {
         }
     }
 
-    @Cacheable(value = "shortCode")
     public RedirectCodeResponseDto getRedirectInfo(String code) throws CodeNotFoundException, CodeExpiredException {
         ShortCode shortCode = this.getShortCode(code);
 
         if (shortCode.getPassword() == null) {
             return new RedirectCodeResponseDto(
                     false,
-                    shortCode.getLongUrl()
+                    shortCode.isFile(),
+                    shortCode.isFile() ? null : shortCode.getLongUrl(),
+                    shortCode.isFile() ? getPreSignedUrlForGet(shortCode) : null
             );
         } else {
             return new RedirectCodeResponseDto(
                     true,
+                    shortCode.isFile(),
+                    null,
                     null
             );
         }
     }
 
     public VerifyPasswordResponseDto verifyPassword(String code, String userPassword)
-    throws CodeNotFoundException, CodeExpiredException, IncorrectPasswordException, MissingPasswordException, BadRequestNoPasswordException {
+            throws CodeNotFoundException, CodeExpiredException,
+            IncorrectPasswordException, MissingPasswordException,
+            BadRequestNoPasswordException {
         ShortCode shortCode = this.getShortCode(code);
 
         String password = shortCode.getPassword();
@@ -103,13 +125,18 @@ public class ShortCodeService {
         }
 
         if (passwordEncoder.matches(userPassword, password)) {
-            return new VerifyPasswordResponseDto(shortCode.getLongUrl());
+            return new VerifyPasswordResponseDto(
+                    shortCode.isFile(),
+                    shortCode.isFile() ? null : shortCode.getLongUrl(),
+                    shortCode.isFile() ? getPreSignedUrlForGet(shortCode) : null
+            );
         } else {
             throw new IncorrectPasswordException();
         }
     }
 
-    private ShortCode getShortCode(String code) {
+    @Cacheable(value = "shortCode", key = "#code")
+    public ShortCode getShortCode(String code) {
         Optional<ShortCode> shortCode = shortCodeRepository.findById(code);
         if (shortCode.isEmpty()) {
             throw new CodeNotFoundException();
@@ -118,5 +145,14 @@ public class ShortCodeService {
         } else {
             return shortCode.get();
         }
+    }
+
+    @Cacheable(value = "preSignedUrls", key = "#shortCode.code", condition = "#shortCode.isFile")
+    public String getPreSignedUrlForGet(ShortCode shortCode) {
+        return s3Service.generatePreSignedUrlForGet(this.getFilePath(shortCode));
+    }
+
+    private String getFilePath(ShortCode shortCode) {
+        return shortCode.getCode() + '-' + shortCode.getFileName();
     }
 }

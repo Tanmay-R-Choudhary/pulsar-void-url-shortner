@@ -15,7 +15,9 @@ import java.util.Date;
 public class ShortCode {
     @Id
     private String code;
+    private boolean isFile;
     private String longUrl;
+    private String fileName;
     private String password;
     private Date creationTime;
     private Date expirationTime;

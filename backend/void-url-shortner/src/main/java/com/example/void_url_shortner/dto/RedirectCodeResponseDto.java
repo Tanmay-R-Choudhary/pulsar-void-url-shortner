@@ -12,6 +12,12 @@ public class RedirectCodeResponseDto implements Serializable {
     @JsonProperty("is_password_protected")
     private boolean isPasswordProtected;
 
+    @JsonProperty("is_file")
+    private boolean isFile;
+
     @JsonProperty("original_url")
     private String longUrl;
+
+    @JsonProperty("file_download_url")
+    private String fileDownloadUrl;
 }
