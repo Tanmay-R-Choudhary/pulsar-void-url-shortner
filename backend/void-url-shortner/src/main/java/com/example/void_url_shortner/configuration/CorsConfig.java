@@ -14,7 +14,8 @@ public class CorsConfig {
     public CorsFilter corsFilter() {
         CorsConfiguration corsConfiguration = new CorsConfiguration();
         corsConfiguration.setAllowCredentials(true);
-        corsConfiguration.addAllowedOrigin("http://localhost:39755"); // change here
+        corsConfiguration.addAllowedOrigin("https://void-27372.web.app");
+        corsConfiguration.addAllowedOrigin("https://void-27372.firebaseapp.com");
         corsConfiguration.addAllowedHeader("*");
         corsConfiguration.addAllowedMethod("*");
 
