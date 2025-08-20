@@ -6,8 +6,8 @@ services:
     ports:
       - "27016:27017"
     environment:
-      MONGO_INITDB_ROOT_USERNAME: root
-      MONGO_INITDB_ROOT_PASSWORD: examplepassword
+      MONGO_INITDB_ROOT_USERNAME: ${MONGO_INITDB_ROOT_USERNAME}
+      MONGO_INITDB_ROOT_PASSWORD: ${MONGO_INITDB_ROOT_PASSWORD}
     volumes:
       - mongo-data:/data/db
 
@@ -27,14 +27,14 @@ services:
     ports:
       - "8080:8080"
     environment:
-      - MONGO_URI=mongodb://root:examplepassword@mongodb:27017/shorturls?authSource=admin
-      - SPRING_CACHE_HOST=redis
-      - REDIS_TTL=600000
+      - MONGO_URI=${MONGO_URI}
+      - SPRING_CACHE_HOST=${SPRING_CACHE_HOST}
+      - REDIS_TTL=${REDIS_TTL}
+      - AWS_S3_BUCKET_NAME=${AWS_S3_BUCKET_NAME}
+      - AWS_S3_REGION=${AWS_S3_REGION}
     depends_on:
       - mongodb
       - redis
-    volumes:
-      - /home/tanmay/.aws:/root/.aws:ro
 
 volumes:
   mongo-data:
