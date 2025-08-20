@@ -33,6 +33,8 @@ services:
     depends_on:
       - mongodb
       - redis
+    volumes:
+      - /home/tanmay/.aws:/root/.aws:ro
 
 volumes:
   mongo-data:
